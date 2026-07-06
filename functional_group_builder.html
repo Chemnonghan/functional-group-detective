@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>นักสืบหมู่ฟังก์ชัน: ภารกิจสืบสวนโครงสร้างโมเลกุล</title>
+<style>
+  :root{
+    --c-c:#2d2d2d; --c-h:#4a90d9; --c-o:#e74c3c; --c-n:#27ae60;
+    --bg:#f4ecd8; --panel:#fffdf7; --border:#e1d3ac; --ink:#2b2216; --muted:#7a6b4d;
+    --primary:#a9762f; --primary-dark:#7c5620; --primary-light:#f3e3bd;
+    --noir:#1e2333; --noir-dark:#141824;
+    --good:#1f9d55; --good-bg:#e8f8ef; --bad:#c23a3a; --bad-bg:#fbe7e3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(--ink);
+    background-image:radial-gradient(circle at 1px 1px, rgba(169,118,47,.10) 1px, transparent 0);
+    background-size:22px 22px;}
+  a{color:inherit;}
+
+  /* ---------- top bar ---------- */
+  .topbar{background:linear-gradient(120deg,var(--noir),var(--noir-dark));color:#f3e9cf;padding:18px 24px;position:relative;overflow:hidden;border-bottom:4px solid var(--primary);}
+  .topbar::after{content:"🔍";position:absolute;right:24px;top:50%;transform:translateY(-50%) rotate(-12deg);font-size:64px;opacity:.15;}
+  .topbar h1{margin:0;font-size:22px;font-weight:800;letter-spacing:.3px;}
+  .topbar .meta{margin-top:6px;font-size:13px;opacity:.92;display:flex;flex-wrap:wrap;gap:14px;}
+  .topbar .meta span{display:inline-flex;align-items:center;gap:5px;}
+
+  main{max-width:1180px;margin:0 auto;padding:22px 18px 60px;}
+  .page{display:none;}
+  .page.visible{display:block;}
+
+  .section-title{display:flex;align-items:center;gap:10px;margin:28px 0 14px;}
+  .section-title h2{font-size:18px;margin:0;font-weight:800;color:var(--ink);}
+  .section-title .badge-count{background:var(--primary-light);color:var(--primary-dark);font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;}
+  .intro-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px 22px;box-shadow:0 2px 10px rgba(60,60,120,.05);}
+  .intro-card p{margin:6px 0;font-size:13.5px;color:var(--muted);line-height:1.7;}
+  .intro-card b{color:var(--ink);}
+
+  /* ---------- case briefing (story intro) ---------- */
+  .briefing{position:relative;background:#fffdf5;border:1px solid var(--border);border-left:6px solid var(--noir);border-radius:4px 14px 14px 4px;padding:22px 24px;box-shadow:0 4px 16px rgba(60,45,10,.1);margin-bottom:22px;}
+  .briefing::before{content:"CONFIDENTIAL";position:absolute;top:16px;right:20px;border:2px solid var(--bad);color:var(--bad);font-size:11px;font-weight:900;letter-spacing:2px;padding:3px 10px;border-radius:4px;transform:rotate(6deg);opacity:.75;}
+  .briefing-label{font-size:11.5px;font-weight:800;letter-spacing:1.5px;color:var(--primary-dark);text-transform:uppercase;margin-bottom:4px;}
+  .briefing-title{font-size:20px;font-weight:900;color:var(--ink);margin:0 0 12px;}
+  .briefing p{font-size:14px;color:var(--ink);line-height:1.85;margin:0 0 10px;}
+  .briefing ol{margin:8px 0 12px;padding-left:22px;font-size:14px;color:var(--ink);line-height:1.85;}
+  .briefing-sign{font-size:12.5px;color:var(--muted);font-style:italic;margin-top:10px;}
+
+  /* ---------- challenge cards (question page) ---------- */
+  .challenge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;}
+  .challenge-card{position:relative;background:var(--panel);border:1px solid var(--border);border-top:5px solid var(--primary);border-radius:6px 6px 14px 14px;padding:18px;box-shadow:0 3px 12px rgba(60,45,10,.08);display:flex;flex-direction:column;gap:10px;transition:transform .15s, box-shadow .15s;}
+  .challenge-card::before{content:"CASE FILE";position:absolute;top:-11px;left:16px;background:var(--noir);color:#f3e9cf;font-size:9.5px;font-weight:800;letter-spacing:1.5px;padding:2px 8px;border-radius:4px;}
+  .challenge-card:hover{transform:translateY(-3px) rotate(-.3deg);box-shadow:0 10px 22px rgba(60,45,10,.16);}
+  .challenge-card.solved{border-top-color:var(--good);}
+  .stamp{position:absolute;top:14px;right:14px;border:3px solid var(--good);color:var(--good);font-size:11px;font-weight:900;letter-spacing:1px;padding:4px 8px;border-radius:6px;transform:rotate(8deg);opacity:.85;}
+  .challenge-formula{font-size:24px;font-weight:900;color:var(--primary-dark);letter-spacing:.5px;}
+  .challenge-formula::before{content:"🔎 ";}
+  .challenge-desc{font-size:13px;color:var(--muted);line-height:1.6;min-height:40px;}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:20px;background:var(--primary-light);color:var(--primary-dark);}
+  .chip.done{background:var(--good-bg);color:var(--good);}
+  .progress-bar-wrap{background:#ece1c4;border-radius:20px;height:8px;overflow:hidden;}
+  .progress-bar-fill{background:var(--good);height:100%;border-radius:20px;transition:width .25s;}
+  .progress-label{font-size:11.5px;color:var(--muted);}
+  .start-btn{margin-top:auto;background:var(--noir);color:#f3e9cf;border:none;padding:10px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;}
+  .start-btn:hover{background:var(--noir-dark);}
+
+  /* ---------- quiz cards (shared style for quiz + reused look) ---------- */
+  .quiz-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;}
+  .quiz-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 3px 12px rgba(60,45,10,.08);}
+  .quiz-structure{font-size:16px;font-weight:800;text-align:center;background:var(--primary-light);color:var(--primary-dark);border-radius:10px;padding:14px 8px;margin-bottom:10px;letter-spacing:.5px;}
+  .quiz-q{font-size:13px;color:var(--muted);margin-bottom:10px;}
+  .quiz-opt{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:7px;border-radius:10px;border:1px solid var(--border);background:#fafbff;cursor:pointer;font-size:13px;color:var(--ink);}
+  .quiz-opt:hover{background:var(--primary-light);}
+  .quiz-opt.correct{background:var(--good-bg);border-color:var(--good);color:var(--good);font-weight:700;}
+  .quiz-opt.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad);font-weight:700;}
+  .quiz-opt:disabled{cursor:default;}
+  .quiz-explain{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
+  .quiz-score-pill{display:inline-flex;background:var(--noir);color:#f3e9cf;font-weight:800;font-size:13px;padding:6px 14px;border-radius:20px;}
+
+  /* ---------- activity page ---------- */
+  .activity-topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .back-btn{background:#fff;border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;color:var(--ink);}
+  .back-btn:hover{background:var(--primary-light);}
+  .activity-title{font-size:19px;font-weight:800;}
+  .activity-title::before{content:"🕵️ ";}
+  .activity-layout{display:grid;grid-template-columns:250px 1fr 300px;gap:16px;align-items:start;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(60,45,10,.06);}
+  .panel h3{margin:0 0 10px;font-size:14.5px;color:var(--ink);}
+
+  .atom-btn{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border);background:#fafbff;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink);}
+  .atom-btn:hover{background:var(--primary-light);}
+  .swatch{width:22px;height:22px;border-radius:50%;display:inline-block;color:#fff;text-align:center;line-height:22px;font-size:12px;font-weight:700;flex-shrink:0;}
+  .instructions{font-size:12.5px;line-height:1.6;color:var(--muted);background:var(--primary-light);border-radius:10px;padding:10px;margin-bottom:12px;}
+  .btnrow{display:flex;gap:8px;margin-top:10px;}
+  button.action{flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer;font-size:13px;font-weight:700;}
+  .check-btn{background:var(--good);color:#fff;}
+  .check-btn:hover{background:#188049;}
+  .reset-btn{background:#eee;color:#444;}
+  .reset-btn:hover{background:#e2e2e2;}
+  #canvasWrap{background:#fffdf7;border:1px dashed var(--border);border-radius:14px;height:440px;position:relative;overflow:hidden;}
+  svg{width:100%;height:100%;cursor:default;}
+  .feedback{margin-top:10px;font-size:13px;padding:10px;border-radius:10px;min-height:20px;}
+  .feedback.ok{background:var(--good-bg);color:var(--good);border:1px solid #b7e6c8;}
+  .feedback.err{background:var(--bad-bg);color:var(--bad);border:1px solid #f3c1c9;}
+  .feedback.info{background:var(--primary-light);color:var(--primary-dark);border:1px solid #d8cdfd;}
+  .progress{font-size:13px;margin-top:10px;}
+  .found-item{font-size:12.5px;background:var(--primary-light);border-radius:8px;padding:6px 8px;margin-top:6px;}
+
+  table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  th,td{border:1px solid var(--border);padding:5px 4px;text-align:center;}
+  th{background:#f5f4fe;}
+  tr.hl{background:#fff3c4;}
+  .small{font-size:11.5px;color:var(--muted);margin-top:8px;}
+
+  footer{text-align:center;font-size:11.5px;color:#9a9cb5;padding:18px;}
+
+  @media(max-width:900px){ .activity-layout{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🕵️‍♂️ นักสืบหมู่ฟังก์ชัน: ภารกิจสืบสวนโครงสร้างโมเลกุล</h1>
+  <div class="meta">
+    <span>📘 แผนการจัดการเรียนรู้ที่ 4 เรื่อง หมู่ฟังก์ชัน</span>
+    <span>🧪 รายวิชาเคมี 5 (ว33225) ม.6</span>
+    <span>🏫 โรงเรียนหนองหานวิทยา</span>
+    <span>👩‍🏫 ครูบุ๊ค (นายนพวิชญ์ เพ็งวงษ์)</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ============ PAGE 1: หน้าโจทย์ ============ -->
+  <section class="page visible" id="page-questions">
+
+    <div class="briefing">
+      <div class="briefing-label">🗂️ แฟ้มบรรยายสรุปคดี</div>
+      <div class="briefing-title">คดี: ห้องแล็บปริศนาที่หนองหานวิทยา</div>
+      <p>เช้าวันจันทร์ที่ห้องปฏิบัติการเคมี โรงเรียนหนองหานวิทยา ครูบุ๊คเดินเข้าห้องแล็บแล้วต้องตกใจ! ตู้เก็บสารตัวอย่างสำหรับการทดลองสัปดาห์นี้ถูกงัด ป้ายชื่อสารเคมีหลุดหายไปทั้งหมด เหลือเพียงเศษกระดาษที่เขียน<b>สูตรโมเลกุล</b>ไว้อย่างเร่งรีบติดอยู่ข้างขวดแต่ละใบ หากไม่สามารถระบุได้ว่าแต่ละขวดคือสารประเภทใด การทดลองสำคัญของโรงเรียนอาจต้องเลื่อนออกไปอย่างไม่มีกำหนด!</p>
+      <p>ครูบุ๊คจึงประกาศเปิดภารกิจพิเศษ ตามหา <b>"หน่วยสืบสวนหมู่ฟังก์ชัน"</b> ฝีมือดีที่สุดของโรงเรียน เพื่อไขปริศนาว่าสารลึกลับแต่ละขวด — ที่มีเบาะแสเป็นเพียงสูตรโมเลกุล — แท้จริงแล้วมีโครงสร้างอย่างไร และควรจัดเป็นสารประเภทใดตามหมู่ฟังก์ชันที่ซ่อนอยู่</p>
+      <p><b>ภารกิจของนักสืบทุกคน (นั่นคือพวกเธอ!):</b></p>
+      <ol>
+        <li>รับเบาะแสสูตรโมเลกุลของแต่ละคดี</li>
+        <li>ต่ออะตอมและสร้างพันธะขึ้นใหม่ในห้องปฏิบัติการเสมือน เพื่อสร้างโครงสร้างที่เป็นไปได้ทั้งหมด</li>
+        <li>วิเคราะห์หมู่ฟังก์ชันที่พบ เพื่อระบุว่าสารนั้นคือสารประเภทใด</li>
+        <li>บันทึกผลลงในสมุดเบาะแส ก่อนปิดคดีและนำป้ายชื่อกลับไปติดที่ขวดให้ถูกต้อง</li>
+      </ol>
+      <p>ถ้านักสืบทุกคนช่วยกันไขคดีได้ครบทุกคดี ห้องแล็บก็จะกลับมาใช้งานได้ตามปกติ และการทดลองครั้งสำคัญของโรงเรียนจะไม่ต้องเลื่อนออกไปอีกต่อไป!</p>
+      <div class="briefing-sign">— บันทึกจากครูบุ๊ค หัวหน้าหน่วยสืบสวน</div>
+    </div>
+
+    <div class="intro-card">
+      <p>🔍 เลือก <b>"คดีที่ต้องสืบสวน"</b> ด้านล่างเพื่อเริ่มลงพื้นที่ หรือทดสอบสายตานักสืบด้วย <b>"แฟ้มคดีปิดท้าย"</b></p>
+      <p>อ้างอิงแนวคิดกิจกรรม 8.2 (Exploration) ในแผนการจัดการเรียนรู้ที่ 4 — คล้ายการใช้ PhET Simulation: Build a Molecule</p>
+    </div>
+
+    <div class="section-title">
+      <h2>🔍 คดีที่ต้องสืบสวน</h2>
+      <span class="badge-count" id="challengeSummary"></span>
+    </div>
+    <div class="challenge-grid" id="challengeGrid"></div>
+
+    <div class="section-title">
+      <h2>🗂️ แฟ้มคดีปิดท้าย: ทดสอบสายตานักสืบ</h2>
+      <span class="quiz-score-pill" id="quizScore">คะแนน 0/5</span>
+    </div>
+    <div class="quiz-grid" id="quizGrid"></div>
+
+  </section>
+
+  <!-- ============ PAGE 2: หน้ากิจกรรม ============ -->
+  <section class="page" id="page-activity">
+
+    <div class="activity-topbar">
+      <button class="back-btn" id="backBtn">← กลับห้องสืบสวน</button>
+      <div class="activity-title" id="activityTitle"></div>
+    </div>
+
+    <div class="activity-layout">
+
+      <!-- LEFT: atom palette + controls -->
+      <div class="panel">
+        <h3>ธาตุ (คลิกเพื่อวาง)</h3>
+        <button class="atom-btn" data-el="C"><span class="swatch" style="background:var(--c-c)">C</span> คาร์บอน (วาเลนซ์ 4)</button>
+        <button class="atom-btn" data-el="H"><span class="swatch" style="background:var(--c-h)">H</span> ไฮโดรเจน (วาเลนซ์ 1)</button>
+        <button class="atom-btn" data-el="O"><span class="swatch" style="background:var(--c-o)">O</span> ออกซิเจน (วาเลนซ์ 2)</button>
+        <button class="atom-btn" data-el="N"><span class="swatch" style="background:var(--c-n)">N</span> ไนโตรเจน (วาเลนซ์ 3)</button>
+
+        <div class="instructions">
+          <b>🔎 คู่มือนักสืบ</b><br>
+          1) คลิกปุ่มธาตุเพื่อวางอะตอมลงพื้นที่สืบสวน<br>
+          2) ลากอะตอมเพื่อจัดตำแหน่ง<br>
+          3) คลิกอะตอม 2 ตัวติดกัน = สร้างพันธะเดี่ยว คลิกที่พันธะซ้ำ = เพิ่มเป็นพันธะคู่/สาม<br>
+          4) คลิกพันธะสามครั้ง = ลบพันธะ<br>
+          5) ดับเบิลคลิกอะตอม = ลบอะตอมนั้น<br>
+          6) กด "ไขคดี" เมื่อคิดว่าโครงสร้างสมบูรณ์แล้ว
+        </div>
+
+        <div class="btnrow">
+          <button class="action check-btn" id="checkBtn">🔍 ไขคดี</button>
+          <button class="action reset-btn" id="resetBtn">ล้างพื้นที่วาด</button>
+        </div>
+
+        <div class="progress" id="progressBox"></div>
+      </div>
+
+      <!-- CENTER: canvas -->
+      <div class="panel">
+        <h3 id="targetTitle"></h3>
+        <div id="canvasWrap">
+          <svg id="canvas"></svg>
+        </div>
+        <div class="feedback info" id="feedbackBox">เริ่มลงมือสืบสวนได้เลย นักสืบ!</div>
+      </div>
+
+      <!-- RIGHT: reference table -->
+      <div class="panel">
+        <h3>📖 สมุดเบาะแสหมู่ฟังก์ชัน</h3>
+        <table id="refTable">
+          <thead><tr><th>หมู่ฟังก์ชัน</th><th>ชื่อหมู่</th><th>ชนิดสาร</th><th>ตัวอย่าง</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="small">แถวที่ไฮไลต์ = เบาะแสที่เกี่ยวข้องกับคดีปัจจุบัน</p>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer>🕵️ นักสืบหมู่ฟังก์ชัน — ดัดแปลงจากกิจกรรม 8.2 ในแผนการจัดการเรียนรู้ที่ 4 เรื่องหมู่ฟังก์ชัน (อ้างอิงแนวคิด PhET: Build a Molecule) | ครูบุ๊ค (นายนพวิชญ์ เพ็งวงษ์) | รายวิชาเคมี 5 ม.6 | โรงเรียนหนองหานวิทยา</footer>
+
+<script>
+// ---------- Data ----------
+const ELEMENTS = {
+  C:{valence:4, color:'#2d2d2d'},
+  H:{valence:1, color:'#4a90d9'},
+  O:{valence:2, color:'#e74c3c'},
+  N:{valence:3, color:'#27ae60'}
+};
+
+const REF_TABLE = [
+  {group:'-O-',   name:'ออกซี',            type:'อีเทอร์',    example:'CH3-O-CH3',      key:'ether'},
+  {group:'-OH',   name:'ไฮดรอกซิล',        type:'แอลกอฮอล์', example:'CH3-OH',          key:'alcohol'},
+  {group:'-COOH', name:'คาร์บอกซิล',       type:'กรดอินทรีย์',example:'CH3-COOH',       key:'carboxylic'},
+  {group:'-COH',  name:'คาร์บอกซาลดีไฮด์', type:'แอลดีไฮด์',  example:'CH3-COH',        key:'aldehyde'},
+  {group:'-CO-',  name:'คาร์บอนิล',        type:'คีโตน',      example:'CH3-CO-CH3',     key:'ketone'},
+  {group:'-COO-', name:'แอลคอกซีคาร์บอนิล',type:'เอสเทอร์',   example:'CH3-COO-CH3',    key:'ester'},
+  {group:'-NH2',  name:'อะมิโน',            type:'เอมีน',      example:'CH3NH2',         key:'amine'},
+  {group:'-CO-NH2',name:'เอไมด์',           type:'เอไมด์',     example:'CH3-CO-NH2',     key:'amide'}
+];
+
+const LEVELS = [
+  {label:'C2H6O',  formulas:['C2H6O'],  targetKeys:['ether','alcohol'],
+   desc:'เบาะแสจากที่เกิดเหตุคือสูตรโมเลกุล C2H6O — สืบหาโครงสร้างที่เป็นไปได้ให้ครบ 2 แบบ'},
+  {label:'C3H6O',  formulas:['C3H6O'],  targetKeys:['aldehyde','ketone'],
+   desc:'เบาะแสจากที่เกิดเหตุคือสูตรโมเลกุล C3H6O — สืบหาโครงสร้างที่เป็นไปได้ให้ครบ 2 แบบ'},
+  {label:'C2H4O2', formulas:['C2H4O2'], targetKeys:['carboxylic','ester'],
+   desc:'เบาะแสจากที่เกิดเหตุคือสูตรโมเลกุล C2H4O2 — สืบหาโครงสร้างที่เป็นไปได้ให้ครบ 2 แบบ'},
+  {label:'โบนัส: ไนโตรเจน', formulas:['CH5N','C2H5NO'], targetKeys:['amine','amide'],
+   desc:'คดีลับ! มีไนโตรเจน (N) ปะปนอยู่ในที่เกิดเหตุ ลองสืบหาหมู่เอมีนและเอไมด์'}
+];
+
+// ---------- State ----------
+let atoms = [];      // {id, el, x, y}
+let bonds = [];      // {id, a, b, order}
+let nextAtomId = 1, nextBondId = 1;
+let selectedAtomId = null;
+let currentLevel = 0;
+let found = LEVELS.map(()=> new Set());
+
+const svg = document.getElementById('canvas');
+const feedbackBox = document.getElementById('feedbackBox');
+
+// ---------- Page navigation ----------
+function goToQuestions(){
+  document.getElementById('page-activity').classList.remove('visible');
+  document.getElementById('page-questions').classList.add('visible');
+  renderChallengeCards();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function goToActivity(levelIndex){
+  currentLevel = levelIndex;
+  atoms = []; bonds = []; selectedAtomId = null;
+  feedbackBox.className = 'feedback info';
+  feedbackBox.textContent = 'เริ่มลงมือสืบสวนได้เลย นักสืบ!';
+  document.getElementById('page-questions').classList.remove('visible');
+  document.getElementById('page-activity').classList.add('visible');
+  renderRefTable();
+  document.getElementById('activityTitle').textContent = 'คดี: ' + LEVELS[currentLevel].label;
+  document.getElementById('targetTitle').textContent = 'เบาะแสคดีนี้: ' + LEVELS[currentLevel].label;
+  renderProgress();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+document.getElementById('backBtn').addEventListener('click', goToQuestions);
+
+// ---------- Challenge cards (question page) ----------
+function renderChallengeCards(){
+  const grid = document.getElementById('challengeGrid');
+  grid.innerHTML = '';
+  let totalFound = 0, totalTarget = 0;
+  LEVELS.forEach((lv, i)=>{
+    totalFound += found[i].size;
+    totalTarget += lv.targetKeys.length;
+
+    const solved = found[i].size >= lv.targetKeys.length;
+    const card = document.createElement('div');
+    card.className = 'challenge-card' + (solved ? ' solved' : '');
+
+    if(solved){
+      const stamp = document.createElement('div');
+      stamp.className = 'stamp';
+      stamp.textContent = 'คดีคลี่คลาย';
+      card.appendChild(stamp);
+    }
+
+    const formula = document.createElement('div');
+    formula.className = 'challenge-formula';
+    formula.textContent = lv.label;
+    card.appendChild(formula);
+
+    const desc = document.createElement('div');
+    desc.className = 'challenge-desc';
+    desc.textContent = lv.desc;
+    card.appendChild(desc);
+
+    const chipRow = document.createElement('div');
+    chipRow.className = 'chip-row';
+    lv.targetKeys.forEach(key=>{
+      const ref = REF_TABLE.find(r=>r.key===key);
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (found[i].has(key) ? ' done' : '');
+      chip.textContent = (found[i].has(key) ? '✔ ' : '') + ref.type;
+      chipRow.appendChild(chip);
+    });
+    card.appendChild(chipRow);
+
+    const pct = Math.round((found[i].size / lv.targetKeys.length) * 100);
+    const barWrap = document.createElement('div');
+    barWrap.className = 'progress-bar-wrap';
+    const barFill = document.createElement('div');
+    barFill.className = 'progress-bar-fill';
+    barFill.style.width = pct + '%';
+    barWrap.appendChild(barFill);
+    card.appendChild(barWrap);
+
+    const label = document.createElement('div');
+    label.className = 'progress-label';
+    label.textContent = `เก็บเบาะแสได้ ${found[i].size} / ${lv.targetKeys.length} ชิ้น`;
+    card.appendChild(label);
+
+    const btn = document.createElement('button');
+    btn.className = 'start-btn';
+    btn.textContent = solved ? '🔁 สืบสวนซ้ำ / ฝึกเพิ่ม' : '🕵️ เริ่มสืบสวนคดีนี้';
+    btn.addEventListener('click', ()=> goToActivity(i));
+    card.appendChild(btn);
+
+    grid.appendChild(card);
+  });
+  document.getElementById('challengeSummary').textContent = `เก็บเบาะแสได้ ${totalFound} / ${totalTarget} ชิ้น`;
+}
+
+// ---------- Reference table render ----------
+function renderRefTable(){
+  const tbody = document.querySelector('#refTable tbody');
+  tbody.innerHTML = '';
+  const activeKeys = LEVELS[currentLevel].targetKeys;
+  REF_TABLE.forEach(r=>{
+    const tr = document.createElement('tr');
+    if(activeKeys.includes(r.key)) tr.className='hl';
+    tr.innerHTML = `<td>${r.group}</td><td>${r.name}</td><td>${r.type}</td><td>${r.example}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderProgress(){
+  const lv = LEVELS[currentLevel];
+  const f = found[currentLevel];
+  let html = `<b>🗒️ ความคืบหน้าคดี:</b> เก็บเบาะแสได้ ${f.size} / ${lv.targetKeys.length} ชิ้น<br>${lv.desc}`;
+  f.forEach(key=>{
+    const ref = REF_TABLE.find(r=>r.key===key);
+    html += `<div class="found-item">✔ เจอเบาะแสแล้ว: ${ref.type} (${ref.group})</div>`;
+  });
+  document.getElementById('progressBox').innerHTML = html;
+}
+
+// ---------- Atom placement ----------
+document.querySelectorAll('.atom-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const el = btn.dataset.el;
+    const wrap = document.getElementById('canvasWrap');
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    const x = 60 + Math.random()*(w-120);
+    const y = 60 + Math.random()*(h-120);
+    atoms.push({id: nextAtomId++, el, x, y});
+    render();
+  });
+});
+
+document.getElementById('resetBtn').addEventListener('click', resetCanvas);
+function resetCanvas(){
+  atoms=[]; bonds=[]; selectedAtomId=null;
+  feedbackBox.className='feedback info';
+  feedbackBox.textContent='เคลียร์ที่เกิดเหตุแล้ว เริ่มวางหลักฐานใหม่ได้เลย';
+  render();
+}
+
+document.getElementById('checkBtn').addEventListener('click', checkAnswer);
+
+// ---------- Geometry / valence helpers ----------
+function remainingValence(atomId){
+  const atom = atoms.find(a=>a.id===atomId);
+  const used = bonds.filter(b=>b.a===atomId||b.b===atomId).reduce((s,b)=>s+b.order,0);
+  return ELEMENTS[atom.el].valence - used;
+}
+
+function findBond(a,b){
+  return bonds.find(bd => (bd.a===a&&bd.b===b)||(bd.a===b&&bd.b===a));
+}
+
+function neighborsOf(atomId){
+  return bonds.filter(b=>b.a===atomId||b.b===atomId).map(b=>{
+    const otherId = b.a===atomId? b.b : b.a;
+    return {atom: atoms.find(a=>a.id===otherId), order:b.order, bondId:b.id};
+  });
+}
+
+// ---------- Rendering ----------
+function render(){
+  svg.innerHTML='';
+  bonds.forEach(b=>{
+    const A = atoms.find(a=>a.id===b.a), B = atoms.find(a=>a.id===b.b);
+    if(!A||!B) return;
+    drawBond(A,B,b.order,b.id);
+  });
+  atoms.forEach(a=> drawAtom(a));
+}
+
+function drawBond(A,B,order,bondId){
+  const dx = B.x-A.x, dy = B.y-A.y;
+  const len = Math.sqrt(dx*dx+dy*dy)||1;
+  const nx = -dy/len, ny = dx/len;
+  const offsets = order===1 ? [0] : order===2 ? [-4,4] : [-6,0,6];
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.style.cursor='pointer';
+  offsets.forEach(off=>{
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', A.x+nx*off);
+    line.setAttribute('y1', A.y+ny*off);
+    line.setAttribute('x2', B.x+nx*off);
+    line.setAttribute('y2', B.y+ny*off);
+    line.setAttribute('stroke','#a3a6bd');
+    line.setAttribute('stroke-width','3');
+    g.appendChild(line);
+  });
+  const hit = document.createElementNS('http://www.w3.org/2000/svg','line');
+  hit.setAttribute('x1',A.x); hit.setAttribute('y1',A.y);
+  hit.setAttribute('x2',B.x); hit.setAttribute('y2',B.y);
+  hit.setAttribute('stroke','transparent'); hit.setAttribute('stroke-width','16');
+  hit.addEventListener('click', (e)=>{ e.stopPropagation(); cycleBond(bondId); });
+  g.appendChild(hit);
+  svg.appendChild(g);
+}
+
+function drawAtom(a){
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('transform', `translate(${a.x},${a.y})`);
+  g.style.cursor='grab';
+
+  const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  circle.setAttribute('r', 20);
+  circle.setAttribute('fill', ELEMENTS[a.el].color);
+  circle.setAttribute('stroke', a.id===selectedAtomId? '#6c5ce7':'#fff');
+  circle.setAttribute('stroke-width', a.id===selectedAtomId? 4:2);
+  g.appendChild(circle);
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+  text.setAttribute('text-anchor','middle');
+  text.setAttribute('dy','5');
+  text.setAttribute('fill','#fff');
+  text.setAttribute('font-size','14');
+  text.setAttribute('font-weight','700');
+  text.textContent = a.el;
+  g.appendChild(text);
+
+  const rem = remainingValence(a.id);
+  const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+  label.setAttribute('text-anchor','middle');
+  label.setAttribute('dy','34');
+  label.setAttribute('font-size','10');
+  label.setAttribute('fill', rem===0? '#1f9d55' : '#c07a13');
+  label.textContent = rem===0 ? 'ครบ' : `ว่าง ${rem}`;
+  g.appendChild(label);
+
+  let moved=false;
+  g.addEventListener('mousedown', (e)=>{
+    e.stopPropagation();
+    moved=false;
+    const startX=e.clientX, startY=e.clientY;
+    const origX=a.x, origY=a.y;
+    function onMove(ev){
+      const dx=ev.clientX-startX, dy=ev.clientY-startY;
+      if(Math.abs(dx)>3||Math.abs(dy)>3) moved=true;
+      a.x = origX+dx; a.y = origY+dy;
+      render();
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if(!moved) handleAtomClick(a.id);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  g.addEventListener('dblclick', (e)=>{
+    e.stopPropagation();
+    atoms = atoms.filter(x=>x.id!==a.id);
+    bonds = bonds.filter(b=>b.a!==a.id && b.b!==a.id);
+    if(selectedAtomId===a.id) selectedAtomId=null;
+    render();
+  });
+
+  svg.appendChild(g);
+}
+
+function handleAtomClick(id){
+  if(selectedAtomId===null){
+    selectedAtomId = id;
+  } else if(selectedAtomId===id){
+    selectedAtomId = null;
+  } else {
+    tryBond(selectedAtomId, id);
+    selectedAtomId = null;
+  }
+  render();
+}
+
+function tryBond(aId,bId){
+  const existing = findBond(aId,bId);
+  if(existing){
+    if(existing.order>=3){
+      flashFeedback('พันธะนี้เป็นพันธะสามอยู่แล้ว (สูงสุด)','err');
+      return;
+    }
+    if(remainingValence(aId)<1 || remainingValence(bId)<1){
+      flashFeedback('อะตอมหนึ่งในสองมีพันธะเต็มแล้ว ไม่สามารถเพิ่มพันธะได้','err');
+      return;
+    }
+    existing.order++;
+  } else {
+    if(remainingValence(aId)<1 || remainingValence(bId)<1){
+      flashFeedback('อะตอมหนึ่งในสองมีพันธะเต็มแล้ว ไม่สามารถสร้างพันธะได้','err');
+      return;
+    }
+    bonds.push({id: nextBondId++, a:aId, b:bId, order:1});
+  }
+}
+
+function cycleBond(bondId){
+  const b = bonds.find(x=>x.id===bondId);
+  if(!b) return;
+  b.order--;
+  if(b.order<=0){ bonds = bonds.filter(x=>x.id!==bondId); }
+  render();
+}
+
+function flashFeedback(msg, cls){
+  feedbackBox.className = 'feedback '+cls;
+  feedbackBox.textContent = msg;
+}
+
+// ---------- Formula & connectivity ----------
+function isConnected(){
+  if(atoms.length===0) return false;
+  const visited = new Set();
+  const stack=[atoms[0].id];
+  visited.add(atoms[0].id);
+  while(stack.length){
+    const cur = stack.pop();
+    neighborsOf(cur).forEach(n=>{
+      if(!visited.has(n.atom.id)){ visited.add(n.atom.id); stack.push(n.atom.id); }
+    });
+  }
+  return visited.size === atoms.length;
+}
+
+function computeFormula(){
+  const counts = {};
+  atoms.forEach(a=> counts[a.el] = (counts[a.el]||0)+1 );
+  let str = '';
+  if(counts.C){ str += 'C' + (counts.C>1? counts.C:''); }
+  if(counts.H){ str += 'H' + (counts.H>1? counts.H:''); }
+  Object.keys(counts).sort().forEach(el=>{
+    if(el==='C'||el==='H') return;
+    str += el + (counts[el]>1? counts[el]:'');
+  });
+  return str;
+}
+
+function allValencesSatisfied(){
+  return atoms.every(a=> remainingValence(a.id)===0);
+}
+
+// ---------- Functional group classification ----------
+function classifyMolecule(){
+  const results = new Set();
+  const cAtoms = atoms.filter(a=>a.el==='C');
+
+  cAtoms.forEach(c=>{
+    const nb = neighborsOf(c.id);
+    const doubleO = nb.filter(n=>n.atom.el==='O' && n.order===2);
+    const singleO = nb.filter(n=>n.atom.el==='O' && n.order===1);
+    const singleN = nb.filter(n=>n.atom.el==='N' && n.order===1);
+    const hCount  = nb.filter(n=>n.atom.el==='H').length;
+    const cCount  = nb.filter(n=>n.atom.el==='C').length;
+
+    if(doubleO.length>=1){
+      if(singleO.length>=1){
+        const other = neighborsOf(singleO[0].atom.id).find(n=>n.atom.id!==c.id);
+        if(other && other.atom.el==='H') results.add('carboxylic');
+        else if(other && other.atom.el==='C') results.add('ester');
+      } else if(singleN.length>=1){
+        results.add('amide');
+      } else if(hCount>=1){
+        results.add('aldehyde');
+      } else if(cCount>=1){
+        results.add('ketone');
+      }
+    } else {
+      singleO.forEach(sO=>{
+        const other = neighborsOf(sO.atom.id).find(n=>n.atom.id!==c.id);
+        if(other && other.atom.el==='H') results.add('alcohol');
+        else if(other && other.atom.el==='C'){
+          const otherIsCarbonyl = neighborsOf(other.atom.id).some(n=>n.atom.el==='O'&&n.order===2);
+          if(!otherIsCarbonyl) results.add('ether');
+        }
+      });
+      singleN.forEach(sN=>{
+        const nNeighbors = neighborsOf(sN.atom.id);
+        const hasCarbonyl = nNeighbors.some(n=> n.atom.el==='C' && neighborsOf(n.atom.id).some(m=>m.atom.el==='O'&&m.order===2));
+        if(!hasCarbonyl) results.add('amine');
+      });
+    }
+  });
+
+  return results;
+}
+
+// ---------- Check answer ----------
+function checkAnswer(){
+  if(atoms.length===0){
+    flashFeedback('ยังไม่มีหลักฐานในที่เกิดเหตุเลย ลองคลิกปุ่มธาตุด้านซ้ายเพื่อเริ่มวางอะตอม','err');
+    return;
+  }
+  if(!isConnected()){
+    flashFeedback('หลักฐานยังไม่เชื่อมโยงกันเป็นโมเลกุลเดียว ตรวจสอบพันธะให้ครบทุกอะตอม','err');
+    return;
+  }
+  if(!allValencesSatisfied()){
+    flashFeedback('ยังมีร่องรอยที่ต่อไม่ครบ (ดูตัวเลข "ว่าง" ใต้อะตอม) กรุณาต่อพันธะให้ครบวาเลนซ์ทุกอะตอม','err');
+    return;
+  }
+  const formula = computeFormula();
+  const lv = LEVELS[currentLevel];
+  if(!lv.formulas.includes(formula)){
+    flashFeedback(`โครงสร้างนี้สมบูรณ์ แต่ได้สูตรโมเลกุล ${formula} ซึ่งไม่ตรงกับเบาะแสของคดีนี้ (${lv.formulas.join(' หรือ ')}) ลองปรับจำนวนอะตอมใหม่`,'err');
+    return;
+  }
+  const groups = classifyMolecule();
+  const relevant = [...groups].filter(g=>lv.targetKeys.includes(g));
+  if(relevant.length===0){
+    flashFeedback(`สูตรโมเลกุลถูกต้อง (${formula}) แต่ยังระบุหมู่ฟังก์ชันที่เป็นเบาะแสของคดีนี้ไม่ได้ ลองตรวจสอบตำแหน่งอะตอม O/N อีกครั้ง`,'err');
+    return;
+  }
+  let newlyFound = [];
+  relevant.forEach(key=>{
+    if(!found[currentLevel].has(key)){
+      found[currentLevel].add(key);
+      newlyFound.push(key);
+    }
+  });
+  const names = relevant.map(k=> REF_TABLE.find(r=>r.key===k).type).join(', ');
+  if(newlyFound.length>0){
+    flashFeedback(`เจอเบาะแสแล้ว! สูตร ${formula} นี้คือ ${names} 🕵️🎉`, 'ok');
+  } else {
+    flashFeedback(`ถูกต้อง (${names}) แต่เบาะแสนี้เคยเจอแล้ว ลองหาโครงสร้างแบบอื่นเพิ่ม`, 'ok');
+  }
+  renderProgress();
+  renderChallengeCards();
+}
+
+svg.addEventListener('click', ()=>{ selectedAtomId=null; render(); });
+
+// ---------- Quiz: identify functional group from structure ----------
+const QUIZ = [
+  {
+    structure:'CH3-CH2-OH',
+    question:'สารประกอบนี้มีหมู่ฟังก์ชันใด และจัดเป็นสารประเภทใด',
+    options:['ไฮดรอกซิล (-OH) — แอลกอฮอล์','ออกซี (-O-) — อีเทอร์','คาร์บอกซิล (-COOH) — กรดอินทรีย์','อะมิโน (-NH2) — เอมีน'],
+    answer:0,
+    explain:'มี -OH เกาะกับคาร์บอน จึงเป็นหมู่ไฮดรอกซิล จัดเป็นแอลกอฮอล์'
+  },
+  {
+    structure:'CH3-O-CH3',
+    question:'สารประกอบนี้มีหมู่ฟังก์ชันใด และจัดเป็นสารประเภทใด',
+    options:['คาร์บอนิล (-CO-) — คีโตน','ออกซี (-O-) — อีเทอร์','ไฮดรอกซิล (-OH) — แอลกอฮอล์','เอสเทอร์ (-COO-) — เอสเทอร์'],
+    answer:1,
+    explain:'ออกซิเจนสร้างพันธะเดี่ยวคั่นกลางระหว่างคาร์บอนสองอะตอม (C-O-C) จึงเป็นหมู่ออกซี จัดเป็นอีเทอร์'
+  },
+  {
+    structure:'CH3-COOH',
+    question:'สารประกอบนี้มีหมู่ฟังก์ชันใด และจัดเป็นสารประเภทใด',
+    options:['คาร์บอกซาลดีไฮด์ — แอลดีไฮด์','คาร์บอนิล — คีโตน','คาร์บอกซิล (-COOH) — กรดอินทรีย์','เอไมด์ — เอไมด์'],
+    answer:2,
+    explain:'มีทั้ง C=O และ -OH บนคาร์บอนเดียวกัน (-COOH) จึงเป็นหมู่คาร์บอกซิล จัดเป็นกรดอินทรีย์'
+  },
+  {
+    structure:'CH3-CHO',
+    question:'สารประกอบนี้มีหมู่ฟังก์ชันใด และจัดเป็นสารประเภทใด',
+    options:['คาร์บอกซาลดีไฮด์ (-CHO) — แอลดีไฮด์','คาร์บอนิล (-CO-) — คีโตน','ออกซี (-O-) — อีเทอร์','คาร์บอกซิล — กรดอินทรีย์'],
+    answer:0,
+    explain:'คาร์บอนที่มี C=O ต่อกับ H โดยตรง (ปลายโซ่) คือหมู่คาร์บอกซาลดีไฮด์ จัดเป็นแอลดีไฮด์'
+  },
+  {
+    structure:'CH3-CO-CH3',
+    question:'สารประกอบนี้มีหมู่ฟังก์ชันใด และจัดเป็นสารประเภทใด',
+    options:['คาร์บอกซาลดีไฮด์ — แอลดีไฮด์','เอสเทอร์ — เอสเทอร์','คาร์บอนิล (-CO-) — คีโตน','ไฮดรอกซิล — แอลกอฮอล์'],
+    answer:2,
+    explain:'คาร์บอนที่มี C=O ขนาบด้วยคาร์บอนสองด้าน (ไม่มี H หรือ OH ต่อโดยตรง) คือหมู่คาร์บอนิล จัดเป็นคีโตน'
+  }
+];
+
+let quizScore = 0;
+
+function renderQuiz(){
+  const grid = document.getElementById('quizGrid');
+  grid.innerHTML = '';
+  QUIZ.forEach((q, qi)=>{
+    const card = document.createElement('div');
+    card.className = 'quiz-card';
+    const structDiv = document.createElement('div');
+    structDiv.className = 'quiz-structure';
+    structDiv.textContent = `ข้อ ${qi+1}: ${q.structure}`;
+    card.appendChild(structDiv);
+    const qText = document.createElement('div');
+    qText.className = 'quiz-q';
+    qText.textContent = q.question;
+    card.appendChild(qText);
+    const explainDiv = document.createElement('div');
+    explainDiv.className = 'quiz-explain';
+
+    q.options.forEach((opt, oi)=>{
+      const btn = document.createElement('button');
+      btn.className = 'quiz-opt';
+      btn.textContent = opt;
+      btn.addEventListener('click', ()=>{
+        const allOpts = card.querySelectorAll('.quiz-opt');
+        allOpts.forEach(b=> b.disabled = true);
+        if(oi === q.answer){
+          btn.classList.add('correct');
+          quizScore++;
+        } else {
+          btn.classList.add('wrong');
+          allOpts[q.answer].classList.add('correct');
+        }
+        explainDiv.textContent = q.explain;
+        updateQuizScore();
+      });
+      card.appendChild(btn);
+    });
+
+    card.appendChild(explainDiv);
+    grid.appendChild(card);
+  });
+  updateQuizScore();
+}
+
+function updateQuizScore(){
+  document.getElementById('quizScore').textContent = `คะแนน ${quizScore}/${QUIZ.length}`;
+}
+
+// ---------- init ----------
+renderChallengeCards();
+renderQuiz();
+</script>
+</body>
+</html>
